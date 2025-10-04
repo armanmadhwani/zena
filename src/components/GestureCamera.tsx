@@ -12,6 +12,7 @@ export const GestureCamera = ({ onGestureDetected }: GestureCameraProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive, setIsActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const handsRef = useRef<Hands | null>(null);
   const cameraRef = useRef<Camera | null>(null);
   const lastGestureRef = useRef<string | null>(null);
@@ -127,6 +128,20 @@ export const GestureCamera = ({ onGestureDetected }: GestureCameraProps) => {
     if (!videoRef.current) return;
 
     try {
+      setError(null);
+      
+      // Check if we're on HTTPS or localhost
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        throw new Error('Camera access requires HTTPS. Please use a secure connection.');
+      }
+
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported in this browser.');
+      }
+
+      console.log('Requesting camera access...');
+
       const hands = new Hands({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
@@ -156,8 +171,26 @@ export const GestureCamera = ({ onGestureDetected }: GestureCameraProps) => {
       await camera.start();
       cameraRef.current = camera;
       setIsActive(true);
-    } catch (error) {
+      console.log('Camera started successfully');
+    } catch (error: any) {
       console.error("Error starting camera:", error);
+      
+      let errorMessage = 'Failed to access camera. ';
+      
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMessage += 'Camera permission was denied. Please allow camera access in your browser settings.';
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        errorMessage += 'No camera device found. Please connect a camera.';
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        errorMessage += 'Camera is already in use by another application.';
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'Please check your browser settings and try again.';
+      }
+      
+      setError(errorMessage);
+      setIsActive(false);
     }
   };
 
@@ -181,6 +214,16 @@ export const GestureCamera = ({ onGestureDetected }: GestureCameraProps) => {
 
   return (
     <div className="relative">
+      {error && (
+        <div className="max-w-2xl mx-auto mb-4 bg-destructive/10 border border-destructive text-destructive rounded-lg p-4 text-sm">
+          <p className="font-semibold mb-1">Camera Error</p>
+          <p>{error}</p>
+          <p className="mt-2 text-xs">
+            Make sure your site is using HTTPS (secure connection) and that you have granted camera permissions in your browser.
+          </p>
+        </div>
+      )}
+      
       <div className="relative w-full max-w-2xl mx-auto">
         <video
           ref={videoRef}
