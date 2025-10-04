@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Hands, Results } from "@mediapipe/hands";
 import { Camera } from "@mediapipe/camera_utils";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
-import { HAND_CONNECTIONS } from "@mediapipe/hands";
+import { HAND_CONNECTIONS, Hands, Results } from "@mediapipe/hands";
 
 interface GestureCameraProps {
   onGestureDetected: (gesture: string) => void;
