@@ -1,7 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera } from "@mediapipe/camera_utils";
-import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
-import { HAND_CONNECTIONS, Hands, Results } from "@mediapipe/hands";
+
+// Using global MediaPipe objects loaded from CDN
+declare const window: Window & {
+  Hands: any;
+  Camera: any;
+  drawConnectors: any;
+  drawLandmarks: any;
+  HAND_CONNECTIONS: any;
+};
+
+type Results = {
+  image: HTMLVideoElement;
+  multiHandLandmarks?: any[];
+};
 
 interface GestureCameraProps {
   onGestureDetected: (gesture: string) => void;
@@ -12,8 +23,8 @@ export const GestureCamera = ({ onGestureDetected }: GestureCameraProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const handsRef = useRef<Hands | null>(null);
-  const cameraRef = useRef<Camera | null>(null);
+  const handsRef = useRef<any>(null);
+  const cameraRef = useRef<any>(null);
   const lastGestureRef = useRef<string | null>(null);
   const lastTriggerTimeRef = useRef<number>(0);
 
@@ -107,11 +118,11 @@ export const GestureCamera = ({ onGestureDetected }: GestureCameraProps) => {
       const landmarks = results.multiHandLandmarks[0];
       
       // Draw with neon colors
-      drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+      window.drawConnectors(canvasCtx, landmarks, window.HAND_CONNECTIONS, {
         color: "#00ffff",
         lineWidth: 3,
       });
-      drawLandmarks(canvasCtx, landmarks, {
+      window.drawLandmarks(canvasCtx, landmarks, {
         color: "#ff00ff",
         lineWidth: 2,
         radius: 4,
@@ -141,8 +152,13 @@ export const GestureCamera = ({ onGestureDetected }: GestureCameraProps) => {
 
       console.log('Requesting camera access...');
 
-      const hands = new Hands({
-        locateFile: (file) => {
+      // Check if MediaPipe is loaded
+      if (!window.Hands || !window.Camera) {
+        throw new Error('MediaPipe libraries not loaded. Please refresh the page.');
+      }
+
+      const hands = new window.Hands({
+        locateFile: (file: string) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
         },
       });
@@ -157,7 +173,7 @@ export const GestureCamera = ({ onGestureDetected }: GestureCameraProps) => {
       hands.onResults(onResults);
       handsRef.current = hands;
 
-      const camera = new Camera(videoRef.current, {
+      const camera = new window.Camera(videoRef.current, {
         onFrame: async () => {
           if (videoRef.current && handsRef.current) {
             await handsRef.current.send({ image: videoRef.current });
